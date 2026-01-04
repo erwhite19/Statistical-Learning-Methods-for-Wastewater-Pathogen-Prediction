@@ -198,8 +198,8 @@ for (k in 1:10) {
     
     # Save predictions
     val <- val %>%
-      dplyr::select(site_code, s_index, week, date_index, avg_Log10_NoV, predicted, q0.025, q0.975) %>%
-      st_drop_geometry()  
+      dplyr::select(site_code, week, avg_Log10_NoV, predicted, q0.025, q0.975) %>%
+      st_drop_geometry() 
 
     predictions <- rbind(predictions, val)
 
