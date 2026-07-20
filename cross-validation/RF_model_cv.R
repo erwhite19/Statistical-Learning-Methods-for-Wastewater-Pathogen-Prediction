@@ -10,7 +10,7 @@ set.seed(123)
 
 
 
-nov_df <- readr::read_csv("../../data/data/nov_df_reduced.csv") %>%
+nov_df <- readr::read_csv("data/nov_df.csv") %>%
   dplyr::mutate(row_id = dplyr::row_number()) %>%
   dplyr::filter(!is.na(avg_Log10_NoV))
 
@@ -64,14 +64,12 @@ nov<- nov %>%
   mutate(s_index=as.numeric(site_code)) %>%
   mutate(site_code= as.character(site_code))
 
-nov$Week_date<- as.Date(nov$Week_date)
+nov$Week_date<- as.Date(nov$week_beginning)
 
 nov<- nov %>%
   arrange(Week_date) %>%
   mutate(f_index= as.numeric(Week_date))
 
-nov <- nov %>%
-  mutate(avg_Log10_NoV = ifelse(GI_ND | GII_ND, NA, avg_Log10_NoV)) 
 
 # create fold blocks------------------------------------------------------------
 # unique sites
@@ -81,7 +79,7 @@ sites<- nov %>%
   unique()
 
 # shapefile
-england<- st_read("../../data/data/england_crop.shp")
+england<- st_read("data/england_crop.shp")
 england<- st_transform(england, crs= st_crs(nov))
 
 raster<- raster(england)
@@ -238,5 +236,3 @@ summary_metrics <- metrics %>%
 # Print the summary of metrics
 print(summary_metrics)
 
-write.csv(metrics, "../../output/ML_model/cv/ML_rf_model_metrics_full_final.csv")
-write.csv(predictions, "../../output/ML_model/cv/ML_rf_model_predictions_full_final.csv")

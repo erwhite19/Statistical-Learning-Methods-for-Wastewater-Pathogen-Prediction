@@ -8,7 +8,7 @@ library(blockCV)
 
 set.seed(123)
 
-nov_df <- readr::read_csv("../../data/data/nov_df_reduced.csv") %>%
+nov_df <- readr::read_csv("data/nov_df.csv") %>%
   dplyr::mutate(row_id = dplyr::row_number()) %>%
   dplyr::filter(!is.na(avg_Log10_NoV))
 
@@ -64,14 +64,13 @@ nov<- nov %>%
   mutate(s_index=as.numeric(site_code)) %>%
   mutate(site_code= as.character(site_code))
 
-nov$Week_date<- as.Date(nov$Week_date)
+nov$Week_date<- as.Date(nov$week_beginning)
 
 nov<- nov %>%
   arrange(Week_date) %>%
   mutate(f_index= as.numeric(Week_date))
 
-nov <- nov %>%
-  mutate(avg_Log10_NoV = ifelse(GI_ND | GII_ND, NA, avg_Log10_NoV)) 
+
 
 # create fold blocks------------------------------------------------------------
 # unique sites
@@ -81,7 +80,7 @@ sites<- nov %>%
   unique()
 
 # shapefile
-england<- st_read("../../data/data/england_crop.shp")
+england<- st_read("data/england_crop.shp")
 england<- st_transform(england, crs= st_crs(nov))
 
 raster<- raster(england)
@@ -104,132 +103,145 @@ nov <- nov %>%
 
 #cross-validation---------------------------------------------------
 fit <- list()
-metrics<- data.frame()
+metrics <- data.frame()
 predictions <- data.frame()
 
-params = list(
-      eta = 0.05,
-      max_depth = 4,
-      subsample = 0.7,
-      colsample_bytree = 0.7,
-      objective = "reg:squarederror",
-      eval_metric = "rmse"
-    )
+params <- list(
+  eta = 0.05,
+  max_depth = 4,
+  subsample = 0.7,
+  colsample_bytree = 0.7,
+  objective = "reg:squarederror",
+  eval_metric = "rmse"
+)
 
 for (k in 1:10) {
   
-    # subset data
-    train <- subset(nov, folds != k)  # All folds except k
-    val <- subset(nov, folds == k)   # Only fold k
-
-    vars_used <- c(
-      "avg_Log10_NoV","lockdown_step3","lockdown_step4","lockdown_planB","scale_school_den", "scale_carehome_den", "scale_mob_7day",
-      "scale_bame", "scale_imd", "scale_prop_agri", "scale_prop_urb","temp_2", "temp_3", "temp_4", "temp_5",
-      "rain_2", "rain_3", "rain_4", "rain_5","week", "site_code")
-
-    train <- train %>%
-      st_drop_geometry() %>%
-      dplyr::filter(complete.cases(dplyr::select(., all_of(vars_used))))
-
-    val <- val %>%
-      st_drop_geometry() %>%
-      dplyr::filter(complete.cases(dplyr::select(., all_of(vars_used))))
-
-    y_train <- train$avg_Log10_NoV
-    X_train <- model.matrix( ~ -1 +lockdown_step3 + lockdown_step4 + lockdown_planB + scale_school_den + scale_carehome_den + scale_mob_7day + scale_bame + scale_imd + scale_prop_agri + scale_prop_urb + 
-      temp_2 + temp_3 + temp_4 + temp_5 + rain_2 + rain_3 + rain_4 + rain_5 + week * site_code, data = train)
-                              
-
-    X_test <- model.matrix( ~ -1 +lockdown_step3 + lockdown_step4 + lockdown_planB + scale_school_den + scale_carehome_den + scale_mob_7day + scale_bame + scale_imd + scale_prop_agri + scale_prop_urb + 
-      temp_2 + temp_3 + temp_4 + temp_5 + rain_2 + rain_3 + rain_4 + rain_5 + week * site_code, data = val)                       
-
-    y_test <- val$avg_Log10_NoV   
- 
-
-    # Align test matrix columns to training matrix
-    missing_cols <- setdiff(colnames(X_train), colnames(X_test))
-    extra_cols <- setdiff(colnames(X_test), colnames(X_train))
-
-    # Remove extra columns from test set if any
-    if(length(extra_cols) > 0) {
-      X_test <- X_test[, !(colnames(X_test) %in% extra_cols), drop = FALSE]
-    }
-
-    # Add missing columns as zeros
-    if(length(missing_cols) > 0) {
-      zero_mat <- matrix(0, nrow = nrow(X_test), ncol = length(missing_cols))
-      colnames(zero_mat) <- missing_cols
-      X_test <- cbind(X_test, zero_mat)
-    }
-
-    # Reorder columns to match training set
-    X_test <- X_test[, colnames(X_train), drop = FALSE]
-
-
-    # define final training and testing sets
-    xgb_train <- xgb.DMatrix(data = X_train, label = y_train)
-    xgb_test <- xgb.DMatrix(data = X_test, label = y_test)
-
-    fit[[k]]  <- xgboost(
-    data = xgb_train,
-    params = params,
+  # subset data
+  train <- subset(nov, folds != k)
+  val   <- subset(nov, folds == k)
+  
+  vars_used <- c(
+    "avg_Log10_NoV", "lockdown_step3", "lockdown_step4", "lockdown_planB",
+    "scale_school_den", "scale_carehome_den", "scale_mob_7day",
+    "scale_bame", "scale_imd", "scale_prop_agri", "scale_prop_urb",
+    "temp_2", "temp_3", "temp_4", "temp_5",
+    "rain_2", "rain_3", "rain_4", "rain_5", "week", "site_code"
+  )
+  
+  train <- train %>%
+    st_drop_geometry() %>%
+    dplyr::filter(complete.cases(dplyr::select(., all_of(vars_used))))
+  
+  val <- val %>%
+    st_drop_geometry() %>%
+    dplyr::filter(complete.cases(dplyr::select(., all_of(vars_used))))
+  
+  y_train <- train$avg_Log10_NoV
+  X_train <- model.matrix(
+    ~ -1 + lockdown_step3 + lockdown_step4 + lockdown_planB +
+      scale_school_den + scale_carehome_den + scale_mob_7day +
+      scale_bame + scale_imd + scale_prop_agri + scale_prop_urb +
+      temp_2 + temp_3 + temp_4 + temp_5 +
+      rain_2 + rain_3 + rain_4 + rain_5 + week * site_code,
+    data = train
+  )
+  
+  X_test <- model.matrix(
+    ~ -1 + lockdown_step3 + lockdown_step4 + lockdown_planB +
+      scale_school_den + scale_carehome_den + scale_mob_7day +
+      scale_bame + scale_imd + scale_prop_agri + scale_prop_urb +
+      temp_2 + temp_3 + temp_4 + temp_5 +
+      rain_2 + rain_3 + rain_4 + rain_5 + week * site_code,
+    data = val
+  )
+  
+  y_test <- val$avg_Log10_NoV
+  
+  # Align test matrix columns to training matrix
+  missing_cols <- setdiff(colnames(X_train), colnames(X_test))
+  extra_cols   <- setdiff(colnames(X_test), colnames(X_train))
+  
+  if (length(extra_cols) > 0) {
+    X_test <- X_test[, !(colnames(X_test) %in% extra_cols), drop = FALSE]
+  }
+  
+  if (length(missing_cols) > 0) {
+    zero_mat <- matrix(0, nrow = nrow(X_test), ncol = length(missing_cols))
+    colnames(zero_mat) <- missing_cols
+    X_test <- cbind(X_test, zero_mat)
+  }
+  
+  X_test <- X_test[, colnames(X_train), drop = FALSE]
+  
+  # ✅ Use xgb.DMatrix + xgb.train (stable API, accepts params list)
+  xgb_train <- xgb.DMatrix(data = X_train, label = y_train)
+  xgb_test  <- xgb.DMatrix(data = X_test,  label = y_test)
+  
+  fit[[k]] <- xgb.train(           # <-- CHANGED from xgboost()
+    params  = params,
+    data    = xgb_train,
     nrounds = 300,
     verbose = 0
   )
-                         
-
-    fit.fold<- fit[[k]]
+  
+  fit.fold <- fit[[k]]
+  
+  # Predictions
+  val$predicted <- predict(fit.fold, newdata = xgb_test)
+  
+  # Bootstrapped prediction intervals
+  n_boot <- 500
+  pred_matrix <- matrix(NA, nrow = n_boot, ncol = nrow(X_test))
+  
+  for (i in 1:n_boot) {
+    boot_idx       <- sample(seq_len(nrow(X_train)), replace = TRUE)
+    xgb_train_boot <- xgb.DMatrix(data = X_train[boot_idx, ], label = y_train[boot_idx])
     
-    # Predictions
-    val$predicted <- predict(fit.fold, newdata = X_test)
+    model_boot <- xgb.train(        # <-- CHANGED from xgboost()
+      params  = params,
+      data    = xgb_train_boot,
+      nrounds = 300,
+      verbose = 0
+    )
     
-    #Pseudocode for bootstrapped intervals
-    n_boot <- 500
-    pred_matrix <- matrix(NA, nrow = n_boot, ncol = nrow(X_test))
-    for (i in 1:n_boot) {
-      boot_idx <- sample(seq_len(nrow(X_train)), replace = TRUE)
-      xgb_train_boot <- xgb.DMatrix(data = X_train[boot_idx, ], label = y_train[boot_idx])
-      model_boot <- xgboost(data = xgb_train_boot, params = params, nrounds = 300, verbose = 0)
-      pred_matrix[i, ] <- predict(model_boot, newdata = X_test)
-    }
-    val$q0.025 <- apply(pred_matrix, 2, quantile, probs = 0.025)
-    val$q0.975 <- apply(pred_matrix, 2, quantile, probs = 0.975)
-    
-    
-    # Save predictions
-    val <- val %>%
-      dplyr::select(site_code, week, avg_Log10_NoV, predicted, q0.025, q0.975) %>%
-      st_drop_geometry() 
-
-    predictions <- rbind(predictions, val)
-
-    # Calculate metrics
-    mse <- mean((val$avg_Log10_NoV - val$predicted)^2, na.rm = TRUE)
-    rmse <- sqrt(mse)
-    mae <- mean(abs(val$avg_Log10_NoV - val$predicted), na.rm = TRUE)
-    mape <- mean(abs((val$avg_Log10_NoV - val$predicted) / val$avg_Log10_NoV), na.rm = TRUE) * 100
-    bias <- mean(val$predicted - val$avg_Log10_NoV, na.rm = TRUE)
-    pbias <- (bias / mean(val$avg_Log10_NoV, na.rm = TRUE)) * 100
-    corr <- as.numeric(cor(val$avg_Log10_NoV, val$predicted, use="complete.obs", method="spearman"))  
-    cov <- COV(val$avg_Log10_NoV, lower = val$q0.025, upper = val$q0.975)    
-
-    metrics_fold <- data.frame(
-    Fold = k,
-    MSE = mse,
-    RMSE = rmse,
-    MAE = mae,
-    MAPE = mape,
-    BIAS = bias,
+    pred_matrix[i, ] <- predict(model_boot, newdata = xgb_test)
+  }
+  
+  val$q0.025 <- apply(pred_matrix, 2, quantile, probs = 0.025)
+  val$q0.975 <- apply(pred_matrix, 2, quantile, probs = 0.975)
+  
+  # Save predictions
+  val <- val %>%
+    dplyr::select(site_code, week, avg_Log10_NoV, predicted, q0.025, q0.975)
+  
+  predictions <- rbind(predictions, val)
+  
+  # Calculate metrics
+  mse   <- mean((val$avg_Log10_NoV - val$predicted)^2, na.rm = TRUE)
+  rmse  <- sqrt(mse)
+  mae   <- mean(abs(val$avg_Log10_NoV - val$predicted), na.rm = TRUE)
+  mape  <- mean(abs((val$avg_Log10_NoV - val$predicted) / val$avg_Log10_NoV), na.rm = TRUE) * 100
+  bias  <- mean(val$predicted - val$avg_Log10_NoV, na.rm = TRUE)
+  pbias <- (bias / mean(val$avg_Log10_NoV, na.rm = TRUE)) * 100
+  corr  <- as.numeric(cor(val$avg_Log10_NoV, val$predicted, use = "complete.obs", method = "spearman"))
+  cov   <- COV(val$avg_Log10_NoV, lower = val$q0.025, upper = val$q0.975)
+  
+  metrics_fold <- data.frame(
+    Fold  = k,
+    MSE   = mse,
+    RMSE  = rmse,
+    MAE   = mae,
+    MAPE  = mape,
+    BIAS  = bias,
     pBIAS = pbias,
-    CORR = corr,
-    COV = cov
+    CORR  = corr,
+    COV   = cov
   )
-    metrics <- rbind(metrics, metrics_fold)
-
-    print(metrics_fold)
-
-    print(paste(k, "folds done"))
-   
+  
+  metrics <- rbind(metrics, metrics_fold)
+  print(metrics_fold)
+  print(paste(k, "folds done"))
 }
 
 
@@ -280,5 +292,4 @@ summary_metrics <- metrics %>%
 # Print the summary of metrics
 print(summary_metrics)
 
-write.csv(metrics, "../../output/ML_xgb_modeltune_metrics_full_final.csv")
-write.csv(predictions, "../../output/ML_xgb_modeltune_predictions_full_final.csv")
+
