@@ -4,12 +4,31 @@ library(caret)
 library(sf)
 library(sp)
 library(raster)
-
+library(fastDummies)
 set.seed(123)
+setwd("C:/Users/erw19/OneDrive - Imperial College London/PhD/script")
 
 ## read data -------------------------------------------------------------------
 nov_df <- read.csv("nov_df_reduced.csv")
-pred_grid <- read.csv("lsoa_grid_prediction.csv") 
+pred_grid <- read.csv("Data/prediction_data/lsoa_grid_prediction.csv") 
+
+
+pred_grid <- dummy_cols(
+  pred_grid,
+  select_columns = "rain_cat",
+  remove_selected_columns = TRUE
+)
+
+names(pred_grid) <- sub("^rain_cat_", "rain_", names(pred_grid))
+
+pred_grid <- dummy_cols(
+  pred_grid,
+  select_columns = "temp_cat",
+  remove_selected_columns = TRUE
+)
+
+names(pred_grid) <- sub("^temp_cat_", "temp_", names(pred_grid))
+
 
 # ensure no missing coordinates
 coords_master <- nov_df %>%
@@ -41,7 +60,7 @@ scale_covariates <- function(df, covariates_to_scale) {
 nov_df<- scale_covariates(nov_df, covariates_to_scale)
 
 nov_df <- nov_df %>% 
-  dplyr::select(avg_Log10_NoV, lockdown_step3, lockdown_step4, lockdown_planB, lockdown_lifting,
+  dplyr::select(site_code, avg_Log10_NoV, lockdown_step3, lockdown_step4, lockdown_planB, lockdown_lifting,
                 scale_school_den, scale_carehome_den, scale_imd, scale_bame,
                 scale_mob_7day,temp_2, temp_3, temp_4, temp_5, rain_2, rain_3 , rain_4 , rain_5, scale_prop_urb,scale_prop_agri,
                 Easting, Northing, week)
@@ -67,21 +86,17 @@ grid <- pred_grid %>%
       lockdown_step4 = lockdown_step4,
       lockdown_lifting = lockdown_lifting,
       lockdown_planB = lockdown_planB,
-      scale_school_density = scale_school_den,
+      scale_school_den = scale_school_den,
       scale_carehome_density = scale_carehome_den,
       scale_mobility = scale_mob_7day,
-      scale_BAME = scale_bame,
+      scale_ = scale_bame,
       scale_imd_score= scale_imd,
       scale_prop_urb= scale_prop_urb,
       scale_rain_rolling_7day = scale_rain_7day_avg,
       scale_temp_rolling_7day = scale_temp_7day_avg,
-      date_index = week
+      week = week
     )
 
-grid <- grid %>% 
-  dplyr::select(lockdown_step3, lockdown_step4, lockdown_planB, lockdown_lifting,
-                scale_school_density, scale_carehome_density, scale_imd_score, scale_BAME,
-                scale_mobility, scale_rain_rolling_7day, scale_temp_rolling_7day, scale_prop_urb,Easting, Northing, date_index, LSOA21CD)
 
 # formula ---------------------------------------------------------------
 formula <- as.formula("avg_Log10_NoV ~ lockdown_step3 + lockdown_step4 + lockdown_planB +
@@ -98,18 +113,55 @@ model  <- ranger(formula,
                     mtry = 8, 
                     min.node.size=2,
                     write.forest = TRUE,
-                    quantreg = TRUE)
+                    quantreg = TRUE,
+                 keep.inbag = T)
 
 # prediction on grid -------------------------------------------------
 
-pred_mean <- predict(model, data = grid)$predictions
-pred_quantiles <- predict(model, data = grid, type = "quantiles", quantiles = c(0.025, 0.5, 0.975))$predictions
+predictions <- predict(model, data = pred_grid, predict.all= T)
 
-grid$predicted <- pred_mean
-grid$pred_025 <- pred_quantiles[, 1]
-grid$pred_50 <- pred_quantiles[, 2]
-grid$pred_975 <- pred_quantiles[, 3]
+pred_mean <- rowMeans(predictions$predictions)
 
-write.csv(grid, "outputs/prediction/rf_lsoa_prediction_new.csv", row.names = FALSE)
+# Uncertainty
+
+pred_quantiles <- predict(model, data = pred_grid, type = "quantiles", quantiles = c(0.025, 0.5, 0.975))$predictions
+
+pred_sd<- predict(model, data = pred_grid, type = "se", se.method = "infjack", keep.inbag= T)$se
+  
+  
+pred_grid$predicted <- pred_mean
+pred_grid$pred_025 <- pred_quantiles[, 1]
+pred_grid$pred_50 <- pred_quantiles[, 2]
+pred_grid$pred_975 <- pred_quantiles[, 3]
+pred_grid$sd <- pred_sd
+
+# save
+write.csv(pred_grid, ".../rf_lsoa_prediction.csv", row.names = FALSE)
+
+pred_samples<- predictions$predictions # Rename columns of the predictions matrix
+
+colnames(pred_samples) <- paste0("sample_", 1:ncol(predictions$predictions))
+
+pred_grid<- cbind(pred_grid, pred_samples)
+
+sample_cols <- grep("^sample_", names(pred_grid), value = TRUE)
+
+# Get weekly mean for EACH sample separately
+weekly_samples <- pred_grid %>%
+  group_by(week) %>%
+  summarise(across(all_of(sample_cols), mean), .groups = "drop")
+
+# compute intervals
+sample_mat <- as.matrix(weekly_samples[, sample_cols])
+
+weekly_summary <- data.frame(
+  week     = weekly_samples$week,
+  mean = rowMeans(sample_mat),
+  lower  = apply(sample_mat, 1, quantile, 0.025),
+  upper  = apply(sample_mat, 1, quantile, 0.975)
+)
+
+
+write.csv(weekly_summary, ".../rf_nat_pred.csv")
 
 
