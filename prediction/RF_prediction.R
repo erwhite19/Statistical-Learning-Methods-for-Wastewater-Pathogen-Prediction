@@ -146,7 +146,7 @@ pred_grid<- cbind(pred_grid, pred_samples)
 
 sample_cols <- grep("^sample_", names(pred_grid), value = TRUE)
 
-# Get weekly mean for EACH sample separately
+# Get weekly mean for sample separately
 weekly_samples <- pred_grid %>%
   group_by(week) %>%
   summarise(across(all_of(sample_cols), mean), .groups = "drop")
