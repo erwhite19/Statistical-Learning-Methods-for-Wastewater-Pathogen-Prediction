@@ -7,7 +7,7 @@ This repository contains the data and code used in the paper "Comparing statisti
 - LASSO regression implemented in [glmnet](https://cran.r-project.org/web/packages/glmnet/index.html)
 - Random Forest implemented in [ranger](https://cran.r-project.org/web/packages/ranger/index.html)
 
-We compared the above approaches to our benchmark model which used the framework outlined in Li et al. (2023) using the Integrated Nested Laplace Approximations (INLA) coupled with Stochastic Partial Differential Equations (SPDE) framework, implemented in the [R-INLA](https://www.r-inla.org/) package. This allows probablistic predictions of pathogen concentrations in wastewater
+We compared the above approaches to our benchmark model which used the framework outlined in [Li et al. (2023)](https://www.sciencedirect.com/science/article/pii/S0160412023000387?via%3Dihub) using the Integrated Nested Laplace Approximations (INLA) coupled with Stochastic Partial Differential Equations (SPDE) framework, implemented in the [R-INLA](https://www.r-inla.org/) package. This allows probablistic predictions of pathogen concentrations in wastewater
 
 The data used in this research was collected as part of the Environmental Monitoring for Health Protection programme in England. 
 
