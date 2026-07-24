@@ -11,3 +11,6 @@ We compared the above approaches to our benchmark model which used the framework
 
 The data used in this research was collected as part of the Environmental Monitoring for Health Protection programme in England. 
 
+This repository contains the data and scripts that can be used to replicate the results of the paper:
+
+
