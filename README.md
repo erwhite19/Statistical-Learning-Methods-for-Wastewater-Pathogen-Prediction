@@ -12,7 +12,7 @@ We compared the above approaches to our benchmark model which used the framework
 The data used in this research was collected as part of the Environmental Monitoring for Health Protection programme in England. 
 
 This repository contains the data and scripts that can be used to replicate the results of the paper:
--[cross-validation](cross-validation) contains the scripts used for 10-fold sptial cross validation of all the models
+- [cross-validation](cross-validation) contains the scripts used for 10-fold sptial cross validation of all the models
 - [data](data) contains the data used for model fitting and prediction at the LSOA centroids
 - [plots](plots) contains scripts used to generate the plots that were included in the paper
 - [prediction](prediction) contains the script to generate teh norovirus wastewater predictions at the LSOA centroids for the INLA-SPDE and Random Forest models
