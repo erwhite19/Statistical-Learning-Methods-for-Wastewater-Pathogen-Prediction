@@ -6,6 +6,7 @@ This repository contains the data and code used in the paper "Comparing statisti
 - Bayesian Generalised Additive Models implemented in [brms](https://cran.r-project.org/web/packages/brms/index.html)
 - LASSO regression implemented in [glmnet](https://cran.r-project.org/web/packages/glmnet/index.html)
 - Random Forest implemented in [ranger](https://cran.r-project.org/web/packages/ranger/index.html)
+- Extreme Gradient Boosting (XGBoost) implemented in [xgboost](https://cran.r-project.org/web/packages/xgboost/index.html)
 
 We compared the above approaches to our benchmark model which used the framework outlined in [Li et al. (2023)](https://www.sciencedirect.com/science/article/pii/S0160412023000387?via%3Dihub) using the Integrated Nested Laplace Approximations (INLA) coupled with Stochastic Partial Differential Equations (SPDE) framework, implemented in the [R-INLA](https://www.r-inla.org/) package. This allows probablistic predictions of pathogen concentrations in wastewater
 
@@ -13,7 +14,7 @@ The data used in this research was collected as part of the Environmental Monito
 
 This repository contains the data and scripts that can be used to replicate the results of the paper:
 - [cross-validation](cross-validation) contains the scripts used for 10-fold sptial cross validation of all the models
-- [data](data) contains the data used for model fitting and prediction at the LSOA centroids
+- [data](data) contains the data used for model fitting, cross validation and prediction at the LSOA centroids
 - [plots](plots) contains scripts used to generate the plots that were included in the paper
 - [prediction](prediction) contains the script to generate teh norovirus wastewater predictions at the LSOA centroids for the INLA-SPDE and Random Forest models
 
