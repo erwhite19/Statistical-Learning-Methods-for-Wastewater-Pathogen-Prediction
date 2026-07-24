@@ -5,7 +5,7 @@ This repository contains the data and code used in the paper "Comparing statisti
 - Generalised Additive Models implemented in the [mgcv](https://cran.r-project.org/web/packages/mgcv/index.html)
 - Bayesian Generalised Additive Models implemented in [brms](https://cran.r-project.org/web/packages/brms/index.html)
 - LASSO regression implemented in [glmnet](https://cran.r-project.org/web/packages/glmnet/index.html)
-- Random Forest implemented in [ranger]https://cran.r-project.org/web/packages/ranger/index.html)
+- Random Forest implemented in [ranger](https://cran.r-project.org/web/packages/ranger/index.html)
 
 We compared the above approaches to our benchmark model which used the framework outlined in Li et al. (2023) using the Integrated Nested Laplace Approximations (INLA) coupled with Stochastic Partial Differential Equations (SPDE) framework, implemented in the [R-INLA](https://www.r-inla.org/) package. This allows probablistic predictions of pathogen concentrations in wastewater
 
