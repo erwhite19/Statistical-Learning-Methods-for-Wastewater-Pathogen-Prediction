@@ -268,7 +268,7 @@ mean_pred <- data.frame(
 
 fwrite(mean_pred, "output/inla_mean_predictions.csv")
 # extract sample.size values from each marginal of the fitted values
-posterior.samples = inla.posterior.sample(n = 100, result=pred.lsoa, intern = FALSE, use.improved.mean = TRUE, add.names = TRUE, seed = 0L)
+posterior.samples = inla.posterior.sample(n = 1000, result=pred.lsoa, intern = FALSE, use.improved.mean = TRUE, add.names = TRUE, seed = 0L)
 
 # extract the posterior latent for the validation sites and reshape in order to have a matrix of nrow(valid) x sample.size
 samples.fitted<- matrix(
@@ -284,21 +284,82 @@ samples.fitted <- as.data.frame(samples.fitted) %>%
   mutate(
     LSOA21CD = pred_grid$LSOA21CD,
     week      = pred_grid$week,
-    pred_ll   = pred.lsoa$summary.fitted.values[index, "0.025quant"],
-    pred_ul   = pred.lsoa$summary.fitted.values[index, "0.975quant"],
+    lower   = pred.lsoa$summary.fitted.values[index, "0.025quant"],
+    upper   = pred.lsoa$summary.fitted.values[index, "0.975quant"],
     sd        = pred.lsoa$summary.fitted.values[index, "sd"]
   )
 
 
 # Create the column names for columns 1 to 100
-new_names <- paste0("sample_", 1:100)
+new_names <- paste0("sample_", 1:1000)
 
 # Assign the new names to columns 1 to 100
-colnames(samples.fitted)[1:100] <- new_names
-columns_to_convert <- 1:100
+colnames(samples.fitted)[1:1000] <- new_names
+columns_to_convert <- 1:1000
 
 # Step 3: Convert specified columns to numeric
-samples.df<- as.data.frame(samples.fitted)
-samples.df[, columns_to_convert] <- apply(samples.df[, columns_to_convert], 2, as.numeric)
+pred_grid<- as.data.frame(samples.fitted)
+pred_grid[, columns_to_convert] <- apply(pred_grid[, columns_to_convert], 2, as.numeric)
 
 fwrite(samples.df, "output/inla_predictions.csv")
+
+pred_grid<- fread("output/inla_predictions.csv")
+
+# lsoa population
+lsoa_pop<- read.csv("Data/LSOA/population_lsoa_21.csv")
+
+# Convert both to data.table (does this in place, no copy made)
+setDT(pred_grid)
+setDT(lsoa_pop)
+
+sample_cols <- grep("^sample_", names(pred_grid), value = TRUE)
+
+
+# Join + weighted mean in data.table
+weekly_samples <- lsoa_pop[pred_grid, on = "LSOA21CD"] [  # left join
+  ,                                                         # no row filter
+  lapply(.SD, function(x) weighted.mean(x, w = population, na.rm = TRUE)),
+  by = week,                                                # group by week
+  .SDcols = sample_cols                                     # only sample columns
+]
+
+
+# compute intervals
+sample_cols <- grep("^sample_", names(weekly_samples), value = TRUE)
+sample_mat <- as.matrix(weekly_samples[, ..sample_cols])
+
+nat_pred<- data.frame(
+  week     = weekly_samples$week,
+  mean = rowMeans(sample_mat),
+  lower  = apply(sample_mat, 1, quantile, 0.025),
+  upper  = apply(sample_mat, 1, quantile, 0.975)
+)
+
+
+write.csv(weekly_summary, "output/inla_nat_pred.csv")
+
+# Get LSOA mean (use data.table to help with large dataset)
+
+
+lsoa_samples <- pred_grid[  # left join
+  ,                                                         # no row filter
+  lapply(.SD, function(x) mean(x, w = population, na.rm = TRUE)),
+  by = LSOA21CD,                                                # group by week
+  .SDcols = sample_cols                                     # only sample columns
+]
+
+
+# compute intervals
+sample_cols <- grep("^sample_", names(lsoa_samples), value = TRUE)
+sample_mat <- as.matrix(lsoa_samples[, ..sample_cols])
+
+lsoa_summary <- data.frame(
+  LSOA21CD     = lsoa_samples$LSOA21CD,
+  mean = rowMeans(sample_mat),
+  lower  = apply(sample_mat, 1, quantile, 0.025),
+  upper  = apply(sample_mat, 1, quantile, 0.975)
+)
+
+
+write.csv(lsoa_summary, "output/inla_lsoa_pred.csv")
+

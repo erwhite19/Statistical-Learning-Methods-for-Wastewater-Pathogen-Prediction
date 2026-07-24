@@ -79,23 +79,6 @@ nov <- st_transform(nov,  crs = "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717
 #grid <-st_as_sf(pred_grid, coords= c("Easting", "Northing"), crs= 27700)
 #grid <- st_transform(grid,  crs = "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +units=km +no_defs")
 
-# rename columns in pred_grid -------------------------------------------------
-
-grid <- pred_grid %>%
-  rename(lockdown_step3 = lockdown_step3,
-      lockdown_step4 = lockdown_step4,
-      lockdown_lifting = lockdown_lifting,
-      lockdown_planB = lockdown_planB,
-      scale_school_den = scale_school_den,
-      scale_carehome_density = scale_carehome_den,
-      scale_mobility = scale_mob_7day,
-      scale_ = scale_bame,
-      scale_imd_score= scale_imd,
-      scale_prop_urb= scale_prop_urb,
-      scale_rain_rolling_7day = scale_rain_7day_avg,
-      scale_temp_rolling_7day = scale_temp_7day_avg,
-      week = week
-    )
 
 
 # formula ---------------------------------------------------------------
@@ -135,8 +118,10 @@ pred_grid$pred_50 <- pred_quantiles[, 2]
 pred_grid$pred_975 <- pred_quantiles[, 3]
 pred_grid$sd <- pred_sd
 
+pred_grid<- pred_grid %>%
+  dplyr::select(LSOA21CD, week, predicted, pred_025, pred_975, sd)
 # save
-write.csv(pred_grid, ".../rf_lsoa_prediction.csv", row.names = FALSE)
+write.csv(pred_grid, "output/rf_lsoa_prediction.csv", row.names = FALSE)
 
 pred_samples<- predictions$predictions # Rename columns of the predictions matrix
 
@@ -144,17 +129,46 @@ colnames(pred_samples) <- paste0("sample_", 1:ncol(predictions$predictions))
 
 pred_grid<- cbind(pred_grid, pred_samples)
 
+fwrite(pred_grid, "output/rf_lsoa_prediction_samples.csv", row.names = FALSE)
+
 sample_cols <- grep("^sample_", names(pred_grid), value = TRUE)
 
-# Get weekly mean for sample separately
+# lsoa population
+lsoa_pop<- read.csv("Data/LSOA/population_lsoa_21.csv")
+
+
+# Get weekly mean (use data.table to help with large dataset)
+
+# Convert both to data.table (does this in place, no copy made)
+setDT(pred_grid)
+setDT(lsoa_pop)
+
+
 weekly_samples <- pred_grid %>%
+  left_join(lsoa_pop, by = "LSOA21CD") %>%
   group_by(week) %>%
-  summarise(across(all_of(sample_cols), mean), .groups = "drop")
+  summarise(
+    across(
+      all_of(sample_cols),
+      ~ weighted.mean(.x, w = population, na.rm = TRUE) # population weighted mean
+    ),
+    .groups = "drop"
+  )
+
+# Join + weighted mean in data.table
+weekly_samples <- lsoa_pop[pred_grid, on = "LSOA21CD"] [  # left join
+  ,                                                         # no row filter
+  lapply(.SD, function(x) weighted.mean(x, w = population, na.rm = TRUE)),
+  by = week,                                                # group by week
+  .SDcols = sample_cols                                     # only sample columns
+]
+
 
 # compute intervals
-sample_mat <- as.matrix(weekly_samples[, sample_cols])
+sample_cols <- grep("^sample_", names(weekly_samples), value = TRUE)
+sample_mat <- as.matrix(weekly_samples[, ..sample_cols])
 
-weekly_summary <- data.frame(
+nat_pred<- data.frame(
   week     = weekly_samples$week,
   mean = rowMeans(sample_mat),
   lower  = apply(sample_mat, 1, quantile, 0.025),
@@ -162,6 +176,37 @@ weekly_summary <- data.frame(
 )
 
 
-write.csv(weekly_summary, ".../rf_nat_pred.csv")
+write.csv(weekly_summary, "output/rf_nat_pred.csv")
+
+# Get LSOA mean (use data.table to help with large dataset)
+lsoa_samples <- pred_grid %>%
+  group_by(LSOA21CD) %>%
+  summarise(
+    across(
+      all_of(sample_cols),
+      ~ mean(.x) # population weighted mean
+    ),
+    .groups = "drop"
+  )
+
+lsoa_samples <- pred_grid[  # left join
+  ,                                                         # no row filter
+  lapply(.SD, function(x) mean(x, w = population, na.rm = TRUE)),
+  by = LSOA21CD,                                                # group by week
+  .SDcols = sample_cols                                     # only sample columns
+]
 
 
+# compute intervals
+sample_cols <- grep("^sample_", names(lsoa_samples), value = TRUE)
+sample_mat <- as.matrix(lsoa_samples[, ..sample_cols])
+
+lsoa_summary <- data.frame(
+  LSOA21CD     = lsoa_samples$LSOA21CD,
+  mean = rowMeans(sample_mat),
+  lower  = apply(sample_mat, 1, quantile, 0.025),
+  upper  = apply(sample_mat, 1, quantile, 0.975)
+)
+
+
+write.csv(lsoa_summary, "output/rf_lsoa_pred.csv")
