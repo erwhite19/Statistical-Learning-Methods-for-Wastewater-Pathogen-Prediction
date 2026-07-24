@@ -13,8 +13,8 @@ The data used in this research was collected as part of the Environmental Monito
 
 This repository contains the data and scripts that can be used to replicate the results of the paper:
 - data contains the data used for model fitting and prediction at the LSOA centroids
-- cv contains the scripts used for 10-fold sptial cross validation of all the models
+- cross-validation contains the scripts used for 10-fold sptial cross validation of all the models
 - plots contains scripts used to generate the plots that were included in the paper
-- 
+- prediction contains the script to generate teh norovirus wastewater predictions at the LSOA centroids for the INLA-SPDE and Random Forest models
 
 
