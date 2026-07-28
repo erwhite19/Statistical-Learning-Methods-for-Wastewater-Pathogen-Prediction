@@ -12,7 +12,7 @@ setwd("~/GitHub/Statistical-Learning-Methods-for-Wastewater-Pathogen-Prediction"
 
 # RF data 
 
-pred_rf<- fread("outputs/rf_lsoa_prediction.csv")
+pred_rf<- fread("outputs/rf_prediction_mean.csv")
 
 # aggregate for plotting
 
@@ -21,20 +21,19 @@ pred_rf<- fread("outputs/rf_lsoa_prediction.csv")
 nat_pred_rf<- read.csv("outputs/rf_nat_pred.csv")
 
 # spatial mean
-space_pred_rf<- read.csv("outputs/rf_lsoa_pred.csv")
+space_pred_rf<- read.csv("outputs/rf_lsoa_prediction.csv")
 
-pred_inla<- fread("outputs/inla_prediction.csv") 
+pred_inla<- fread("outputs/inla_prediction_mean.csv") 
 
 #pred_inla<- fread("outputs/inla_lsoa_prediction_samples.csv") # run prediction script
 
-pred_inla<- pred_grid %>%
-  dplyr::select(LSOA21CD, mean, lower, upper, sd)
+
 # national trend
 
 nat_pred_inla<- read.csv("outputs/inla_nat_pred.csv")
 
 # spatial mean
-space_pred_inla<- read.csv("outputs/inla_lsoa_pred.csv")
+space_pred_inla<- read.csv("outputs/inla_lsoa_prediction.csv")
 
 
 
@@ -180,7 +179,7 @@ dev.off()
 weeks_to_plot <- seq(1, 46, by = 8)   # Plot every 8 weeks
 
 # ── INLA ──────────────────────────────────────────────────────────────────────
-# date variable
+
 
 lsoa_inla <- lsoa_boundaries %>%
   left_join(pred_inla, by = "LSOA21CD")
@@ -189,16 +188,14 @@ lsoa_inla <- lsoa_boundaries %>%
 
 
 lsoa_rf <- lsoa_boundaries %>%
-  left_join(rf_avg, by = "LSOA21CD") %>%
-  filter(!is.na(mean_pred))
-
+  left_join(pred_rf, by = "LSOA21CD")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. Shared fill limits
 # ══════════════════════════════════════════════════════════════════════════════
 
 fill_limits <- c(
-  floor(min(c(lsoa_inla$mean_pred,  lsoa_rf$mean_pred),  na.rm = TRUE)),
-  ceiling(max(c(lsoa_inla$mean_pred, lsoa_rf$mean_pred), na.rm = TRUE))
+  floor(min(c(lsoa_inla$mean,  lsoa_rf$mean),  na.rm = TRUE)),
+  ceiling(max(c(lsoa_inla$mean, lsoa_rf$mean), na.rm = TRUE))
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -208,17 +205,17 @@ fill_limits <- c(
 plots_inla <- list()
 plots_rf   <- list()
 
-pred_inla$date <-  as.Date("2021-05-24") + 7*(space_pred_inla$week - 1)
-pred_rf<- as.Date("2021-05-24") + 7*(space_pred_rf$week - 1)
+lsoa_inla$date <-  as.Date("2021-05-24") + 7*(lsoa_inla$week - 1)
+lsoa_rf$date<- as.Date("2021-05-24") + 7*(lsoa_rf$week - 1)
 for (t in weeks_to_plot) {
   
-  week_data_inla <- subset(space_pred, week == t)
+  week_data_inla <- subset(lsoa_inla, week == t)
   week_data_rf   <- subset(lsoa_rf,   week == t)
-  date_label     <- format(as.Date(unique(pred_inla$date)[1]), "%d %b %Y")
+  date_label     <- format(as.Date(unique(lsoa_inla$date)[1]), "%d %b %Y")
   
   # ── INLA ────────────────────────────────────────────────────────────────────
   plots_inla[[paste0("week_", t)]] <- ggplot() +
-    geom_sf(data = week_data_inla, aes(fill = mean_pred), color = NA) +
+    geom_sf(data = week_data_inla, aes(fill = mean), color = NA) +
     scale_fill_viridis_c(option = "plasma", 
                          limits = fill_limits) +
     labs(title = date_label,
@@ -237,7 +234,7 @@ for (t in weeks_to_plot) {
   
   # ── RF ──────────────────────────────────────────────────────────────────────
   plots_rf[[paste0("week_", t)]] <- ggplot() +
-    geom_sf(data = week_data_rf, aes(fill = mean_pred), color = NA) +
+    geom_sf(data = week_data_rf, aes(fill = mean), color = NA) +
     scale_fill_viridis_c(option = "plasma", 
                          limits = fill_limits) +
     labs(title = date_label,
