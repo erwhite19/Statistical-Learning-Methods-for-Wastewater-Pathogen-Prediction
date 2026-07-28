@@ -68,8 +68,8 @@ space_inla_sf <- lsoa_boundaries %>%
 
 
 # global min and max (for consistent legend)
-global_min_mean<- min(space_inla_sf$pred_mean, space_rf_sf$pred_mean)
-global_max_mean<- max(space_inla_sf$pred_mean, space_rf_sf$pred_mean)
+global_min_mean<- min(space_inla_sf$mean, space_rf_sf$mean)
+global_max_mean<- max(space_inla_sf$mean, space_rf_sf$mean)
 
 global_min_sd<- min(space_inla_sf$sd, space_rf_sf$sd)
 global_max_sd<- max(space_inla_sf$sd, space_rf_sf$sd)
@@ -112,7 +112,7 @@ p2_no_leg <- p2 + theme(legend.position = "none")
 p3 <- ggplot(space_rf_sf) +
   geom_sf(aes(fill = mean), color = NA, lwd = 0, linewidth = 0) +
   scale_fill_viridis_c(option = "plasma", limits = c(global_min_mean, global_max_mean)) +
-  labs(fill = expression(atop("NoV concentration",
+  labs(fill = expression(atop("Norovirus concentration",
                               (log[10]~gene~copies~"/ 100k capita"))))  +
   theme_bw() +
   theme(panel.grid.major  = element_blank(),
@@ -157,7 +157,7 @@ p4_leg <- p4 + guides(fill = guide_colourbar(barwidth       = 10,
 
 # --- Combine ---
 combined <- (p1_no_leg + p2_no_leg) /
-  (p3_leg    + p3_leg) +
+  (p3_leg    + p4_leg) +
   plot_annotation(tag_levels = "A") &
   theme(plot.tag = element_text(face = "bold", size = 12))
 
@@ -217,7 +217,7 @@ for (t in weeks_to_plot) {
     scale_fill_viridis_c(option = "plasma", 
                          limits = fill_limits) +
     labs(title = date_label,
-         fill = expression(atop("NoV concentration",
+         fill = expression(atop("Norovirus concentration",
                                 (log[10]~gene~copies~"/ 100k capita")))) +
     theme_minimal() +
     theme(
@@ -390,4 +390,6 @@ nat_trends<- ggplot() +
       axis.line         = element_line(color = "black")
     )
 
-
+png("outputs/plots/nat_trends.png", width  = 12, height = 6, units= "in", res= 300)
+print(nat_trends)
+dev.off()
