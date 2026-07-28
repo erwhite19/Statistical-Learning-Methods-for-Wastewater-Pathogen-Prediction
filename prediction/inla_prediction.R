@@ -19,11 +19,11 @@ library(data.table)
 inla.setOption(num.threads= "6")
 
 ## read data -------------------------------------------------------------------
-nov_df <- read.csv("nov_df_reduced.csv")
+nov_df <- read.csv("data/nov_df.csv")
 pred_grid <- fread("data/lsoa_grid_prediction.csv")
 
 #englang shapefile
-england<- st_read("Data/shapefiles/england/england_crop.shp")
+england<- st_read("data/england_crop.shp")
 england<- st_transform(england, crs= 27700)
 
 ## scale------------------------------------------------------------------------
@@ -98,7 +98,6 @@ formula<-  as.formula('avg_Log10_NoV ~ -1 + Intercept + lockdown_step3 + lockdow
     rain_2 + rain_3 + rain_4 + rain_5 +
                         f(site_code, model="iid", hyper= pc_prec) + f(week, model= "iid", hyper= pc_prec) +
                         f(spatial.field, model=spde, group=spatial.field.group, control.group=list(model="iid", hyper=pc_prec))')
-
 
 
 ## mesh(est) ------------------------------------------------------------------------
@@ -266,9 +265,9 @@ mean_pred <- data.frame(
   sd        = pred.lsoa$summary.fitted.values[index, "sd"]
 )
 
-fwrite(mean_pred, "output/inla_mean_predictions.csv")
+fwrite(mean_pred, "outputs/inla_prediction.csv")
 # extract sample.size values from each marginal of the fitted values
-posterior.samples = inla.posterior.sample(n = 1000, result=pred.lsoa, intern = FALSE, use.improved.mean = TRUE, add.names = TRUE, seed = 0L)
+posterior.samples = inla.posterior.sample(n = 100, result=pred.lsoa, intern = FALSE, use.improved.mean = TRUE, add.names = TRUE, seed = 0L)
 
 # extract the posterior latent for the validation sites and reshape in order to have a matrix of nrow(valid) x sample.size
 samples.fitted<- matrix(
@@ -284,6 +283,7 @@ samples.fitted <- as.data.frame(samples.fitted) %>%
   mutate(
     LSOA21CD = pred_grid$LSOA21CD,
     week      = pred_grid$week,
+    mean   = pred.lsoa$summary.fitted.values[index, "mean"],
     lower   = pred.lsoa$summary.fitted.values[index, "0.025quant"],
     upper   = pred.lsoa$summary.fitted.values[index, "0.975quant"],
     sd        = pred.lsoa$summary.fitted.values[index, "sd"]
@@ -291,22 +291,22 @@ samples.fitted <- as.data.frame(samples.fitted) %>%
 
 
 # Create the column names for columns 1 to 100
-new_names <- paste0("sample_", 1:1000)
+new_names <- paste0("sample_", 1:100)
 
 # Assign the new names to columns 1 to 100
-colnames(samples.fitted)[1:1000] <- new_names
-columns_to_convert <- 1:1000
+colnames(samples.fitted)[1:100] <- new_names
+columns_to_convert <- 1:100
 
 # Step 3: Convert specified columns to numeric
 pred_grid<- as.data.frame(samples.fitted)
 pred_grid[, columns_to_convert] <- apply(pred_grid[, columns_to_convert], 2, as.numeric)
 
-fwrite(samples.df, "output/inla_predictions.csv")
+fwrite(pred_grid, "outputs/inla_lsoa_prediction_samples.csv")
 
-pred_grid<- fread("output/inla_predictions.csv")
+pred_grid<- fread("outputs/inla_lsoa_prediction_samples.csv")
 
 # lsoa population
-lsoa_pop<- read.csv("Data/LSOA/population_lsoa_21.csv")
+lsoa_pop<- read.csv("data/population_lsoa_21.csv")
 
 # Convert both to data.table (does this in place, no copy made)
 setDT(pred_grid)
@@ -336,7 +336,7 @@ nat_pred<- data.frame(
 )
 
 
-write.csv(weekly_summary, "output/inla_nat_pred.csv")
+write.csv(nat_pred, "outputs/inla_nat_pred.csv")
 
 # Get LSOA mean (use data.table to help with large dataset)
 
