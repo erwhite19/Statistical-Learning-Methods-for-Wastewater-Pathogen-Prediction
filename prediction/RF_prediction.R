@@ -39,8 +39,6 @@ nov_df <- nov_df %>%
   dplyr::select(-Easting, -Northing) %>%
   left_join(coords_master, by = "site_code")
 
-nov_df <- nov_df %>%
-  mutate(avg_Log10_NoV = ifelse(GI_ND | GII_ND, NA, avg_Log10_NoV)) 
 
 ## scale------------------------------------------------------------------------
 
@@ -168,7 +166,7 @@ nat_pred<- data.frame(
 )
 
 
-write.csv(weekly_summary, "output/rf_nat_pred.csv")
+write.csv(nat_pred, "outputs/rf_nat_pred.csv")
 
 # Get LSOA mean (use data.table to help with large dataset)
 

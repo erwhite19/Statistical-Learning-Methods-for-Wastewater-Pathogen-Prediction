@@ -25,8 +25,6 @@ space_pred_rf<- read.csv("outputs/rf_lsoa_prediction.csv")
 
 pred_inla<- fread("outputs/inla_prediction_mean.csv") 
 
-#pred_inla<- fread("outputs/inla_lsoa_prediction_samples.csv") # run prediction script
-
 
 # national trend
 
@@ -164,7 +162,7 @@ combined <- (p1_no_leg + p2_no_leg) /
   theme(plot.tag = element_text(face = "bold", size = 12))
 
 
-png("outputs/space_map.png", width  = 10, height = 12, units= "in", res= 300, type = "cairo")
+png("outputs/plots/lsoa_maps.png", width  = 10, height = 12, units= "in", res= 300, type = "cairo")
 print(combined)
 dev.off()
 
@@ -310,18 +308,86 @@ st_plot <- plot_grid(
 # 7. Save
 # ══════════════════════════════════════════════════════════════════════════════
 
-png("st_combined.png", width  = 10, height = 12, units= "in", res= 300, type = "cairo")
+png("outputs/plots/st_maps.png", width  = 10, height = 12, units= "in", res= 300, type = "cairo")
 print(st_plot)
 dev.off()
 
 
 
+# National trend
 
-
-
+nat_pred_inla$date <-  as.Date("2021-05-24") + 7*(nat_pred_inla$week - 1)
+nat_pred_rf$date<- as.Date("2021-05-24") + 7*(nat_pred_rf$week - 1)
   
 
 
-
+nat_trends<- ggplot() +
+  
+    # --- Confidence Ribbons ---
+    geom_ribbon(
+      data = nat_pred_inla,
+      aes(x = date, ymin = lower, ymax = upper),
+      fill  = "#f4a582",   # salmon/pink
+      alpha = 0.4
+    ) +
+    geom_ribbon(
+      data = nat_pred_rf,
+      aes(x = date, ymin = lower, ymax = upper),
+      fill  = "#92a8d1",   # muted blue
+      alpha = 0.4
+    ) +
+    
+    # --- Mean Lines ---
+    geom_line(
+      data = nat_pred_inla,
+      aes(x = date, y = mean, color = "INLA"),
+      linewidth = 0.8
+    ) +
+    geom_line(
+      data = nat_pred_rf,
+      aes(x = date, y = mean, color = "RF"),
+      linewidth = 1.0
+    ) +
+    
+    # --- Colour Scale for Legend ---
+    scale_color_manual(
+      name   = NULL,
+      values = c("INLA" = "#d6604d", "RF" = "#4575b4"),
+      guide  = guide_legend(
+        override.aes = list(linewidth = 1.2)
+      )
+    ) +
+    
+    # --- Axes ---
+    scale_x_date(
+      date_breaks = "1 month",
+      date_labels = "%b %Y",
+      expand      = c(0.01, 0)
+    ) +
+    scale_y_continuous(
+      breaks = seq(3.8, 6.0, by = 0.2),
+      limits = c(3.6, 6.1)
+    ) +
+    
+    # --- Labels ---
+    labs(
+      x = "Date",
+      y = expression(atop(
+        "Norovirus concentration",
+        log[10] ~ "(gene copies / 100k capita)"
+      ))
+    ) +
+    
+    # --- Theme ---
+    theme_classic(base_size = 13) +
+    theme(
+      axis.text.x       = element_text(angle = 45, hjust = 1),
+      legend.position   = c(0.08, 0.92),
+      legend.background = element_blank(),
+      legend.key        = element_blank(),
+      legend.text       = element_text(size = 12),
+      panel.grid        = element_blank(),
+      axis.line         = element_line(color = "black")
+    )
 
 
