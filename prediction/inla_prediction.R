@@ -277,7 +277,7 @@ mean_pred <- data.frame(
   sd        = pred.lsoa$summary.fitted.values[index, "sd"]
 )
 
-fwrite(mean_pred, "outputs/inla_prediction.csv")
+fwrite(mean_pred, "outputs/predictions/inla_prediction_mean.csv")
 
 # -----------------------------------------------------------------------------
 # Draw Posterior Samples and Save
@@ -319,13 +319,13 @@ samples.fitted <- samples.fitted %>%
 sample_cols <- paste0("sample_", 1:1000)
 samples.fitted[, sample_cols] <- apply(samples.fitted[, sample_cols], 2, as.numeric)
 
-fwrite(samples.fitted, "outputs/inla_lsoa_prediction_samples.csv")
+fwrite(samples.fitted, "outputs/predictions/inla_prediction_samples.csv")
 
 # -----------------------------------------------------------------------------
 # National Weekly Predictions (Population-Weighted)
 # -----------------------------------------------------------------------------
 
-pred_grid <- fread("outputs/inla_lsoa_prediction_samples.csv")
+pred_grid <- fread("outputs/predictions/inla_prediction_samples.csv")
 lsoa_pop  <- read.csv("data/population_lsoa_21.csv")
 
 setDT(pred_grid)
@@ -349,7 +349,7 @@ nat_pred <- data.frame(
   upper = apply(sample_mat, 1, quantile, 0.975)
 )
 
-write.csv(nat_pred, "outputs/inla_nat_pred.csv", row.names = FALSE)
+write.csv(nat_pred, "outputs/predictions/inla_nat_pred.csv", row.names = FALSE)
 
 # -----------------------------------------------------------------------------
 # LSOA-Level Summary (Mean Across Weeks)
@@ -378,4 +378,4 @@ lsoa_summary <- data.frame(
   sd= lsoa_sd$sd
 )
 
-write.csv(lsoa_summary, "outputs/inla_lsoa_pred.csv", row.names = FALSE)
+write.csv(lsoa_summary, "outputs/predictions/inla_lsoa_pred.csv", row.names = FALSE)

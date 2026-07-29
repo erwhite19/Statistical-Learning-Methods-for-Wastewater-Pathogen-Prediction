@@ -122,7 +122,7 @@ pred_grid <- pred_grid %>%
 # Save Mean Predictions
 # -----------------------------------------------------------------------------
 
-write.csv(pred_grid, "outputs/rf_lsoa_prediction_mean.csv", row.names = FALSE)
+write.csv(pred_grid, "outputs/predictions/rf_prediction_mean.csv", row.names = FALSE)
 
 # -----------------------------------------------------------------------------
 # Attach Posterior Samples and Save
@@ -133,7 +133,7 @@ colnames(pred_samples) <- paste0("sample_", 1:ncol(pred_samples))
 
 pred_grid <- cbind(pred_grid, pred_samples)
 
-fwrite(pred_grid, "outputs/rf_lsoa_prediction_samples.csv")
+fwrite(pred_grid, "outputs/predictions/rf_lsoa_prediction_samples.csv")
 
 # -----------------------------------------------------------------------------
 # National Weekly Predictions (Population-Weighted)
@@ -162,7 +162,7 @@ nat_pred <- data.frame(
   upper = apply(sample_mat, 1, quantile, 0.975)
 )
 
-write.csv(nat_pred, "outputs/rf_nat_pred.csv", row.names = FALSE)
+write.csv(nat_pred, "outputs/predictions/rf_nat_pred.csv", row.names = FALSE)
 
 # -----------------------------------------------------------------------------
 # LSOA-Level Summary (Mean Across Weeks)
@@ -191,4 +191,4 @@ lsoa_summary <- data.frame(
   sd       = lsoa_sd$sd
 )
 
-write.csv(lsoa_summary, "outputs/rf_lsoa_pred.csv", row.names = FALSE)
+write.csv(lsoa_summary, "outputs/predictions/rf_lsoa_pred.csv", row.names = FALSE)
