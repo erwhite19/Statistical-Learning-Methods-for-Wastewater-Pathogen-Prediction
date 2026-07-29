@@ -135,6 +135,9 @@ fit         <- list()
 metrics     <- data.frame()
 predictions <- data.frame()
 
+# Start timer
+cv_start_time <- proc.time()
+
 for (k in 1:10) {
   
   # Split into training and validation sets
@@ -225,6 +228,15 @@ for (k in 1:10) {
   message(paste(k, "folds done"))
 }
 
+cv_elapsed <- proc.time() - cv_start_time
+
+elapsed_sec <- cv_elapsed["elapsed"]
+hours       <- floor(elapsed_sec / 3600)
+minutes     <- floor((elapsed_sec %% 3600) / 60)
+seconds     <- round(elapsed_sec %% 60, 1)
+
+message(sprintf("CV loop completed in %dh %dm %.1fs", hours, minutes, seconds))
+
 # -----------------------------------------------------------------------------
 # Overall Coverage Probability (Vectorised)
 # -----------------------------------------------------------------------------
@@ -261,9 +273,3 @@ summary_metrics <- metrics %>%
 
 print(summary_metrics)
 
-# -----------------------------------------------------------------------------
-# Save Outputs
-# -----------------------------------------------------------------------------
-
-write.csv(metrics,     "outputs/lasso_cv_metrics_by_fold.csv",      row.names = FALSE)
-write.csv(predictions, "outputs/lasso_cv_predictions_by_fold.csv",  row.names = FALSE)
