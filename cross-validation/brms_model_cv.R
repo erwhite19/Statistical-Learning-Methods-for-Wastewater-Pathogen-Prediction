@@ -176,7 +176,7 @@ for (k in 1:10) {
   mape  <- mean(abs(resid / val$avg_Log10_NoV), na.rm = TRUE) * 100
   bias  <- mean(-resid,            na.rm = TRUE)
   pbias <- (bias / mean(val$avg_Log10_NoV, na.rm = TRUE)) * 100
-  corr  <- cor(val$avg_Log10_NoV, val$predicted, use = "complete.obs", method = "spearman")
+  corr  <- cor(val$avg_Log10_NoV, val$predicted, use = "complete.obs", method = "pearson")
   cov   <- COV(val$avg_Log10_NoV, lower = val$q0.025, upper = val$q0.975)
   
   metrics_fold <- data.frame(
